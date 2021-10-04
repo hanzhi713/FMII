@@ -10,7 +10,7 @@ Note that the implementation is for 2D line segments only. 3D support can be eas
 
 ## Running the code
 
-The header FMII.h only depends on Eigen3. main.cpp dependents on matplotlibcpp (which is header only) to plot the lines. 
+The header FMII.h only depends on Eigen3. main.cpp dependents on matplotlibcpp (which is header only) to plot the lines. Since matplotlibcpp depends on Python, you may need to change the makefile to use the version of python installed on your system. 
 
 ```
 make && ./main
