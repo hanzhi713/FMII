@@ -2,50 +2,54 @@
 #include <random>
 
 #include "FMII.h"
-#include "matplotlibcpp.h"
-namespace plt = matplotlibcpp;
+// #include "matplotlibcpp.h"
+// namespace plt = matplotlibcpp;
 
-template <int Dim=2>
-void plot_line(const Line<Dim>& line, const string& name, const string& key) {
-    Eigen::Vector2d start_p = line.start + line.t1 * line.dir;
-    Eigen::Vector2d end_p = line.start + line.t2 * line.dir;
-    // cout << start_p << "|" << end_p << endl;
-    if (Dim == 2)
-        plt::named_plot<double, double>(name, {start_p[0], end_p[0]}, {start_p[1], end_p[1]}, key);
-    else
-        plt::plot3<double>({start_p[0], end_p[0]}, {start_p[1], end_p[1]}, {start_p[2], end_p[2]});
+template <int Dim = 2>
+void plot_line(const Line<Dim>& line) {
+    VectorNd<Dim> start_p = line.start + line.t1 * line.dir;
+    VectorNd<Dim> end_p = line.start + line.t2 * line.dir;
     
+    for (int i = 0; i < Dim - 1; i++) {
+        std::cout << start_p[i] << ',';
+    }
+    std::cout << start_p[Dim - 1] << '\n';
+
+    for (int i = 0; i < Dim - 1; i++) {
+        std::cout << end_p[i] << ',';
+    }
+    std::cout << end_p[Dim - 1] << '\n';
 }
 
 int main() {
     default_random_engine gen;
     gen.seed(chrono::system_clock::now().time_since_epoch().count());
-    uniform_real_distribution<double> dist(0.0, 1.0);
+    uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    plt::figure_size(1440, 720);
-    plt::subplot(1, 2, 1);
+    // plt::figure_size(1440, 720);
     // generate some random image_lines
 
     {
         LineVector<2> image_lines;
         for (int i = 0; i < 5; i++) {
-            image_lines.push_back({0.0, 3.0, {dist(gen) * 15, dist(gen) * 15}, {dist(gen), dist(gen)}});
+            image_lines.push_back({0.0, 4.0, {dist(gen) * 15, dist(gen) * 15}, {dist(gen), dist(gen)}});
             auto& line = image_lines.back();
             line.normalize();
             line.recalc_start();
-            plot_line(line, "image", "b-");
+            plot_line(line);
         }
-        Eigen::Rotation2Dd rot(0.45);
+        std::cout << "next\n";
+        Eigen::Rotation2Dd rot(dist(gen) * 3.14);
         Eigen::Vector2d trans(6.0, 7.0);
         LineVector<2> model_lines = image_lines;
         for (auto& line : model_lines) {
             line.dir = rot * line.dir;
-            line.start = rot * line.start;
-            line.start += trans;
-            line.t1 -= dist(gen) * 2;
-            line.t2 += dist(gen) * 2;
-            plot_line(line, "model", "g-");
+            line.start = rot * line.start + trans;
+            line.t1 += dist(gen);
+            line.t2 += dist(gen);
+            plot_line(line);
         }
+        std::cout << "next\n";
 
         vector<LinePair<2>> pairings(image_lines.size());
         for (int i = 0; i < image_lines.size(); i++) {
@@ -56,36 +60,39 @@ int main() {
         FMII(pairings);
 
         for (auto& line : image_lines) {
-            plot_line(line, "image on model", "y-");
+            plot_line(line);
         }
+        std::cout << "next" << std::endl;
     }
 
-    plt::subplot(1, 2, 2);
     {
         LineVector<3> image_lines;
         for (int i = 0; i < 5; i++) {
-            image_lines.push_back({0.0, 3.0, {dist(gen) * 15, dist(gen) * 15, dist(gen) * 15}, {dist(gen), dist(gen), dist(gen)}});
+            image_lines.push_back({0.0, 8.0, {dist(gen) * 15, dist(gen) * 15, dist(gen) * 15}, {dist(gen), dist(gen), dist(gen)}});
             auto& line = image_lines.back();
             line.normalize();
             line.recalc_start();
-            plot_line(line, "image", "b-");
+            plot_line(line);
         }
-        Eigen::AngleAxisd rollAngle(0.45, Eigen::Vector3d::UnitZ());
-        Eigen::AngleAxisd yawAngle(0.55, Eigen::Vector3d::UnitY());
-        Eigen::AngleAxisd pitchAngle(0.65, Eigen::Vector3d::UnitX());
-        Eigen::Quaterniond q = rollAngle * yawAngle * pitchAngle;
-        Eigen::Matrix3d rot = q.matrix();
-        Eigen::Vector3d trans(6.0, 7.0, 8.0);
-        LineVector<3> model_lines = image_lines;
+        std::cout << "next\n";
+
+        // Eigen::AngleAxisd rollAngle(0.45, Eigen::Vector3d::UnitZ());
+        // Eigen::AngleAxisd yawAngle(0.0, Eigen::Vector3d::UnitY());
+        // Eigen::AngleAxisd pitchAngle(0.0, Eigen::Vector3d::UnitX());
+        // Eigen::Quaterniond q = rollAngle * yawAngle * pitchAngle;
+        Eigen::Matrix3d rot = Eigen::Matrix3d::Zero();
+        rot(2, 2) = 1;
+        rot.topLeftCorner<2, 2>() = Eigen::Rotation2Dd(dist(gen) * 3.14).matrix();
+        Eigen::Vector3d trans(0.0, 0.0, 0.0);
+        auto model_lines = image_lines;
         for (auto& line : model_lines) {
             line.dir = rot * line.dir;
-            line.start = rot * line.start;
-            line.start += trans;
-            line.t1 -= dist(gen) * 2;
-            line.t2 += dist(gen) * 2;
-            plot_line(line, "model", "g-");
+            line.start = rot * line.start + trans;
+            line.t1 += dist(gen);
+            line.t2 += dist(gen);
+            plot_line(line);
         }
-
+        std::cout << "next\n";
         vector<LinePair<3>> pairings(image_lines.size());
         for (int i = 0; i < image_lines.size(); i++) {
             pairings[i].model = &model_lines[i];
@@ -95,10 +102,11 @@ int main() {
         FMII(pairings);
 
         for (auto& line : image_lines) {
-            plot_line(line, "image on model", "y-");
+            plot_line(line);
         }
+        std::cout << "next" << std::endl;
     }
 
-    plt::legend();
-    plt::show();
+    // // plt::legend();
+    // plt::show();
 }

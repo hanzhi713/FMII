@@ -12,7 +12,7 @@ template <int Dim>
 using VectorNd = Eigen::Matrix<double, Dim, 1>;
 
 using namespace std;
-template <int Dim=2>
+template <int Dim = 2>
 struct Line {
     double t1, t2;
     VectorNd<Dim> start, dir;
@@ -46,14 +46,14 @@ struct Line {
     }
 };
 
-template <int Dim=2>
+template <int Dim = 2>
 struct LinePair {
-    const Line<Dim> *model;
+    const Line<Dim>* model;
     Line<Dim>* data;
     double sn;
 };
 
-template <int Dim=2>
+template <int Dim = 2>
 using LineVector = vector<Line<Dim>, Eigen::aligned_allocator<Line<Dim>>>;
 
 template <int Dim = 2>
@@ -61,7 +61,6 @@ void FMII(vector<LinePair<Dim>>& pairings) {
     static_assert(Dim == 2 || Dim == 3);
     MatrixNd<Dim> inv_rot;
     VectorNd<Dim> inv_trans;
-    bool converged = false;
     for (int i = 0; i < 500; i++) {
         VectorNd<Dim> abar = VectorNd<Dim>::Zero();
         auto xbar = abar;
@@ -95,13 +94,22 @@ void FMII(vector<LinePair<Dim>>& pairings) {
         Eigen::Quaterniond q;
         q.coeffs() = eigensolver.eigenvectors().col(3);
 
+        // use topLeftCorner just to avoid compile error
+        // or can be resolved with C++17 if constexpr
         if (Dim == 2) {
-            inv_rot = Eigen::Rotation2Dd(q.toRotationMatrix().eulerAngles(0, 1, 2)[0]).toRotationMatrix();
+            inv_rot.template topLeftCorner<2, 2>() = -q.matrix().bottomRightCorner<2, 2>();
         } else {
-            // use topLeftCorner just to avoid compile error
-            // or can be resolved with C++17 if constexpr
-            inv_rot = q.toRotationMatrix().topLeftCorner<Dim, Dim>(); 
+            auto angles = q.matrix().eulerAngles(0, 1, 2);
+            std::cerr << "----------\n";
+            std::cerr << angles << std::endl;
+            Eigen::AngleAxisd rollAngle(angles[0], Eigen::Vector3d::UnitX());
+            Eigen::AngleAxisd yawAngle(angles[1], Eigen::Vector3d::UnitY());
+            Eigen::AngleAxisd pitchAngle(angles[2], Eigen::Vector3d::UnitZ());
+            // inv_rot = -q.matrix().topLeftCorner<Dim, Dim>();
+            inv_rot = (rollAngle * yawAngle * pitchAngle).matrix().topLeftCorner<Dim, Dim>();
         }
+
+        // std::cerr << q.matrix().eulerAngles(0, 1, 2) << std::endl;
 
         inv_trans = abar - inv_rot * xbar;
         double diffs = 0.0;
@@ -110,18 +118,17 @@ void FMII(vector<LinePair<Dim>>& pairings) {
             diffs += abs(new_sn - pair.sn);
             pair.sn = new_sn;
         }
-        if (diffs / pairings.size() <= 1e-3) {
-            cout << "converged at i = " << i << endl;
-            converged = true;
-            break;
+        if (diffs / pairings.size() <= 1e-4) {
+            cerr << "converged at i = " << i << endl;
+            goto converged;
         }
     }
+    cerr << "warning: not converged" << endl;
+converged:
     for (auto& pair : pairings) {
         auto& line = *pair.data;
         line.dir = inv_rot * line.dir;
         line.start = inv_rot * line.start + inv_trans;
         line.recalc_start();
     }
-    if (!converged)
-        cerr << "warning: not converged" << endl;
 }
