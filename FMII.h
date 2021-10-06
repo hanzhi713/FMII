@@ -83,8 +83,8 @@ bool FMII(vector<LinePair>& pairings) {
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> eigensolver(Q);
         Eigen::Quaterniond q;
         q.coeffs() = eigensolver.eigenvectors().col(3);
-        auto angles = q.toRotationMatrix().eulerAngles(0, 1, 2);
-        inv_rot = Eigen::Rotation2Dd(angles[0]);
+        // dont know yet why a minus sign is needed here
+        inv_rot = -q.matrix().bottomRightCorner<2, 2>();
         inv_trans = abar - inv_rot * xbar;
         double diffs = 0.0;
         for (auto& pair : pairings) {

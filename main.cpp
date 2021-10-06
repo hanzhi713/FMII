@@ -16,27 +16,27 @@ void plot_line(const Line& line, const string& name, const string& key) {
 int main() {
     default_random_engine gen;
     gen.seed(chrono::system_clock::now().time_since_epoch().count());
-    uniform_real_distribution<double> dist(0.0, 1.0);
+    uniform_real_distribution<double> dist(-1.0, 1.0);
 
     plt::figure_size(1280, 720);
     // generate some random image_lines
     LineVector image_lines;
     for (int i = 0; i < 5; i++) {
-        image_lines.push_back({0.0, 3.0, {dist(gen) * 15, dist(gen) * 15}, {dist(gen), dist(gen)}});
+        image_lines.push_back({0.0, 4.0, {dist(gen) * 15, dist(gen) * 15}, {dist(gen), dist(gen)}});
         auto& line = image_lines.back();
         line.normalize();
         line.recalc_start();
         plot_line(line, "image", "b-");
     }
-    Eigen::Rotation2Dd rot(0.45);
+    Eigen::Rotation2Dd rot(dist(gen) * M_PI);
     Eigen::Vector2d trans(6.0, 7.0);
     LineVector model_lines = image_lines;
     for (auto& line : model_lines) {
         line.dir = rot * line.dir;
         line.start = rot * line.start;
         line.start += trans;
-        line.t1 -= dist(gen) * 2;
-        line.t2 += dist(gen) * 2;
+        line.t1 += dist(gen);
+        line.t2 += dist(gen);
         plot_line(line, "model", "g-");
     }
 
